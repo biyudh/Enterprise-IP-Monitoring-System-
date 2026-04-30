@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────────
+#  /etc/systemd/system/ent-monitor.service
+#
+#  Runs ENT Monitor as a systemd service with gunicorn.
+#  Auto-restarts on crash. Starts on boot.
+#
+#  Setup:
+#    1. Copy this file to /etc/systemd/system/ent-monitor.service
+#    2. Edit WorkingDirectory and ExecStart paths below
+#    3. sudo systemctl daemon-reload
+#    4. sudo systemctl enable ent-monitor
+#    5. sudo systemctl start ent-monitor
+#    6. sudo systemctl status ent-monitor
+#
+#  Logs:
+#    sudo journalctl -u ent-monitor -f
+# ─────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=ENT Monitor — Enterprise IP Monitoring
+Documentation=https://github.com/yourorg/ent-monitor
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+
+# ── Change these to match your actual paths ──────────────────────
+User=yudha
+Group=yudha
+WorkingDirectory=/home/yudha/ent-monitor/test3-monitor
+ExecStart=/home/yudha/ent-monitor/myvenv/bin/gunicorn -c gunicorn.conf.py app:app
+
+# ── Environment ──────────────────────────────────────────────────
+Environment="PATH=/home/yudha/ent-monitor/myvenv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# ── Restart policy ───────────────────────────────────────────────
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# ── Resource limits ──────────────────────────────────────────────
+LimitNOFILE=65536
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# ── Logging ──────────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ent-monitor
+
+[Install]
+WantedBy=multi-user.target

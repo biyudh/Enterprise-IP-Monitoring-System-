@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ENT Monitor v3</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0E1117;--surface:#161B27;--surface2:#1E2535;--surface3:#252D40;
+  --border:#2A3347;--border2:#334060;
+  --text:#E8EDF5;--muted:#8892A4;--faint:#4A5568;
+  --blue:#3B82F6;--blue-dim:#1E3A5F;--blue-bg:rgba(59,130,246,.12);
+  --green:#10B981;--green-bg:rgba(16,185,129,.12);
+  --amber:#F59E0B;--amber-bg:rgba(245,158,11,.12);
+  --red:#EF4444;--red-bg:rgba(239,68,68,.12);
+  --purple:#8B5CF6;--purple-bg:rgba(139,92,246,.12);
+  --cyan:#06B6D4;
+  --r:8px;--r-sm:5px;
+  --shadow:0 2px 8px rgba(0,0,0,.4);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.6);
+  --font:'IBM Plex Sans',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;overflow:hidden}
+
+/* ── Login Screen ── */
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;background-image:radial-gradient(ellipse at 20% 50%,rgba(59,130,246,.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(139,92,246,.05) 0%,transparent 60%)}
+.login-screen.hidden{display:none}
+.login-box{width:380px;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:36px;box-shadow:var(--shadow-lg)}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.login-logo-icon{width:40px;height:40px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.login-logo-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2}
+.login-logo-text{font-size:18px;font-weight:600;color:var(--text)}
+.login-logo-sub{font-size:11px;color:var(--muted)}
+.login-title{font-size:20px;font-weight:600;margin-bottom:4px}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.lf-label{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;display:block}
+.lf-input{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-size:13px;font-family:var(--font);outline:none;margin-bottom:14px;transition:border .15s}
+.lf-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.lf-error{font-size:12px;color:var(--red);margin-bottom:12px;display:none}
+.btn-login{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-sm);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font);transition:background .15s}
+.btn-login:hover{background:#2563EB}
+.login-hint{margin-top:16px;font-size:11px;color:var(--faint);text-align:center;line-height:1.8}
+
+/* ── App Shell ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.app.hidden{display:none}
+
+/* ── Sidebar ── */
+.sidebar{width:228px;min-width:228px;height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:18px 16px 16px;border-bottom:1px solid var(--border)}
+.sb-icon{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-icon svg{width:17px;height:17px;stroke:#fff;fill:none;stroke-width:2}
+.sb-name{font-size:14px;font-weight:600}
+.sb-ver{font-size:10px;color:var(--faint)}
+.nav-g{padding:14px 10px 4px}
+.nav-lbl{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:0 8px 8px}
+.ni{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;color:var(--muted);cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all .13s;font-family:var(--font)}
+.ni:hover{background:var(--surface2);color:var(--text)}
+.ni.active{background:var(--blue-bg);color:var(--blue);font-weight:500}
+.ni svg{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2}
+.ni-badge{margin-left:auto;font-size:10px;font-weight:600;background:var(--blue-dim);color:var(--blue);padding:2px 7px;border-radius:20px}
+.ni-badge.red{background:var(--red-bg);color:var(--red)}
+.ni.admin-only{display:none}
+.sb-footer{margin-top:auto;padding:12px 14px;border-top:1px solid var(--border)}
+.sb-user{display:flex;align-items:center;gap:10px}
+.sb-av{width:32px;height:32px;border-radius:50%;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-uname{font-size:12px;font-weight:500}
+.sb-role{font-size:10px;color:var(--faint);display:flex;align-items:center;gap:4px}
+.role-tag{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:.04em}
+.role-tag.admin{background:var(--purple-bg);color:var(--purple)}
+.role-tag.operator{background:var(--blue-bg);color:var(--blue)}
+.sb-logout{margin-left:auto;padding:4px;border:none;background:none;color:var(--muted);cursor:pointer;border-radius:var(--r-sm);transition:all .13s}
+.sb-logout:hover{color:var(--red);background:var(--red-bg)}
+.sb-logout svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* ── Main ── */
+.main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 22px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tb-title{font-size:15px;font-weight:600}
+.tb-sub{font-size:11px;color:var(--muted)}
+.tb-right{display:flex;align-items:center;gap:12px}
+.live-pill{display:flex;align-items:center;gap:5px;background:var(--green-bg);color:var(--green);font-size:11px;font-weight:500;padding:4px 10px;border-radius:20px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.clock{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.refresh-info{font-size:11px;color:var(--faint)}
+
+/* ── Page body ── */
+.page-body{flex:1;overflow-y:auto;padding:22px}
+.view{display:none}
+.view.active{display:block}
+.pg-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.pg-title{font-size:17px;font-weight:600}
+.pg-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.card-hdr{padding:13px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+/* ── Stats grid ── */
+.sg{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.sc-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.sc-val{font-size:24px;font-weight:600;line-height:1}
+.sc-sub{font-size:11px;margin-top:4px;color:var(--muted)}
+.c-blue{color:var(--blue)}.c-green{color:var(--green)}.c-red{color:var(--red)}.c-amber{color:var(--amber)}.c-purple{color:var(--purple)}.c-cyan{color:var(--cyan)}.c-muted{color:var(--muted)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search-box{position:relative;flex:1;min-width:200px}
+.search-box input{width:100%;padding:8px 12px 8px 33px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);font-size:13px;color:var(--text);font-family:var(--font);outline:none;transition:border .15s}
+.search-box input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(59,130,246,.12)}
+.search-box input::placeholder{color:var(--faint)}
+.si{position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.si svg{width:13px;height:13px;stroke:var(--faint);fill:none;stroke-width:2}
+.fb{display:flex;align-items:center;gap:5px;padding:7px 11px;border:1px solid var(--border2);border-radius:var(--r-sm);font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;background:var(--surface2);font-family:var(--font);transition:all .13s;white-space:nowrap}
+.fb:hover{border-color:var(--blue);color:var(--blue)}
+.fb.active{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+
+/* ── Table ── */
+.tw{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;min-width:700px}
+.tbl thead th{text-align:left;padding:9px 13px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap}
+.tbl tbody td{padding:10px 13px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tbody tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover{background:var(--surface2)}
+.ip-chip{font-family:var(--mono);font-size:11px;background:var(--surface3);padding:3px 7px;border-radius:4px;color:var(--cyan)}
+.cn{font-size:12px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.cn.dim{color:var(--faint)}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.02em}
+.pd{width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill.online{background:var(--green-bg);color:var(--green)}
+.pill.offline{background:var(--red-bg);color:var(--red)}
+.pill.reserved{background:var(--amber-bg);color:var(--amber)}
+.pill.passive{background:rgba(139,92,246,.15);color:var(--purple)}
+.pill.unassigned{background:var(--red-bg);color:var(--red)}
+.pill.unknown{background:rgba(255,255,255,.05);color:var(--faint)}
+.lat{font-family:var(--mono);font-size:11px}
+.lat.fast{color:var(--green)}.lat.mid{color:var(--amber)}.lat.slow{color:var(--red)}.lat.na{color:var(--faint)}
+.sn{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
+.sn-241{background:var(--blue-bg);color:var(--blue)}
+.sn-240{background:var(--purple-bg);color:var(--purple)}
+.action-btns{display:flex;gap:5px}
+.tbl-btn{padding:3px 9px;border:1px solid var(--border2);border-radius:var(--r-sm);font-size:11px;font-weight:500;color:var(--muted);cursor:pointer;background:none;font-family:var(--font);transition:all .13s;white-space:nowrap}
+.tbl-btn:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.tbl-btn.danger:hover{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.tbl-btn.edit:hover{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)}
+
+/* ── Pagination ── */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--border);background:var(--surface)}
+.pg-info{font-size:11px;color:var(--muted)}
+.pg-btns{display:flex;gap:3px;flex-wrap:wrap}
+.pg-btn{width:28px;height:28px;border-radius:var(--r-sm);border:1px solid var(--border2);font-size:12px;cursor:pointer;background:var(--surface2);color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .13s;font-family:var(--font)}
+.pg-btn:hover{border-color:var(--blue);color:var(--blue)}
+.pg-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* ── Ping terminal ── */
+.ping-wrap{margin-top:20px}
+.ping-lbl{font-size:12px;font-weight:600;margin-bottom:8px;color:var(--muted)}
+.ping-row{display:flex;gap:8px;margin-bottom:10px}
+.ping-inp{flex:1;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);font-size:13px;font-family:var(--mono);color:var(--text);outline:none;transition:border .15s}
+.ping-inp:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(59,130,246,.12)}
+.ping-inp::placeholder{color:var(--faint)}
+.terminal{background:#070B12;border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:2;min-height:110px;white-space:pre-wrap;color:#64748B}
+.t-ok{color:#4ADE80}.t-err{color:#F87171}.t-info{color:#60A5FA}.t-dim{color:#334155}.t-amber{color:#FBBF24}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all .13s;white-space:nowrap}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2563EB}
+.btn-outline{background:var(--surface2);color:var(--muted);border:1px solid var(--border2)}.btn-outline:hover{border-color:var(--blue);color:var(--blue)}
+.btn-red{background:var(--red-bg);color:var(--red);border:1px solid transparent}.btn-red:hover{background:var(--red);color:#fff}
+.btn-amber{background:var(--amber-bg);color:var(--amber);border:1px solid transparent}.btn-amber:hover{background:var(--amber);color:#000}
+.btn-green{background:var(--green-bg);color:var(--green);border:1px solid transparent}.btn-green:hover{background:var(--green);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+/* ── Modal ── */
+.modal-bd{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal-bd.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;width:480px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-hdr{padding:18px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-hdr h3{font-size:15px;font-weight:600}
+.modal-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;transition:all .13s}
+.modal-close:hover{background:var(--red-bg);color:var(--red)}
+.modal-body{padding:20px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.fr{margin-bottom:14px}
+.fl{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;display:block}
+.fi{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border .15s}
+.fi:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(59,130,246,.12)}
+.fi::placeholder{color:var(--faint)}
+textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.err-msg{font-size:12px;color:var(--red);margin-top:8px;display:none}
+.ok-msg{font-size:12px;color:var(--green);margin-top:8px;display:none}
+
+/* ── Confirm dialog ── */
+.confirm-bd{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:1100}
+.confirm-bd.open{display:flex}
+.confirm-box{background:var(--surface);border:1px solid var(--border2);border-radius:10px;width:360px;padding:22px;box-shadow:var(--shadow-lg)}
+.confirm-icon{width:44px;height:44px;border-radius:50%;background:var(--red-bg);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.confirm-icon svg{width:22px;height:22px;stroke:var(--red);fill:none;stroke-width:2}
+.confirm-title{font-size:15px;font-weight:600;margin-bottom:6px}
+.confirm-msg{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:18px}
+.confirm-btns{display:flex;gap:8px;justify-content:flex-end}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:13px;padding:10px 16px;border-radius:var(--r-sm);z-index:2000;opacity:0;transition:opacity .25s,transform .25s;transform:translateY(8px);pointer-events:none;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-color:var(--green);color:var(--green)}
+.toast.err{border-color:var(--red);color:var(--red)}
+
+/* ── User management table ── */
+.user-row-role{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
+.user-row-role.admin{background:var(--purple-bg);color:var(--purple)}
+.user-row-role.operator{background:var(--blue-bg);color:var(--blue)}
+
+/* ── Audit log ── */
+.audit-action{font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:3px;background:var(--surface3)}
+
+/* ── Activity items ── */
+.act-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.act-item:last-child{border-bottom:none}
+.act-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.act-txt{flex:1;color:var(--text)}
+.act-time{font-size:11px;color:var(--faint);font-family:var(--mono);white-space:nowrap}
+
+/* ── Bar charts ── */
+.bar-r{margin-bottom:10px}
+.bar-m{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px}
+.bar-t{height:6px;border-radius:3px;background:var(--surface3);overflow:hidden}
+.bar-f{height:100%;border-radius:3px;transition:width .7s}
+
+/* ── Bulk import textarea ── */
+.bulk-hint{font-size:11px;color:var(--faint);margin-top:4px;line-height:1.5}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div><div class="login-logo-text">ENT Monitor</div><div class="login-logo-sub">v3 — Enterprise IP Monitoring</div></div>
+    </div>
+    <div class="login-title">Sign in</div>
+    <div class="login-sub">Enter your credentials to access the dashboard</div>
+    <label class="lf-label">Username</label>
+    <input class="lf-input" id="loginUser" type="text" placeholder="admin" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <label class="lf-label">Password</label>
+    <input class="lf-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <div class="lf-error" id="loginErr">Invalid username or password.</div>
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign in</button>
+    <!-- <div class="login-hint">Default: admin / Admin@123 &nbsp;|&nbsp; operator / Oper@123<br/>Change passwords after first login.</div> -->
+  </div>
+</div>
+
+<!-- ══════════════ APP ══════════════ -->
+<div class="app hidden" id="app">
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+    <div><div class="sb-name">ENT Monitor</div><div class="sb-ver">v3 — Live</div></div>
+  </div>
+  <div class="nav-g">
+    <div class="nav-lbl">Navigation</div>
+    <button class="ni active" onclick="setView('home',this)">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+    </button>
+    <button class="ni" onclick="setView('dashboard',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+    </button>
+    <button class="ni" onclick="setView('monitor',this)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>IP Monitor
+      <span class="ni-badge" id="nav-total">–</span>
+    </button>
+  </div>
+  <div class="nav-g">
+    <div class="nav-lbl">Manage</div>
+    <button class="ni" onclick="openAddModal()">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Add Customer
+    </button>
+    <button class="ni" onclick="openBulkModal()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Bulk Import
+    </button>
+    <button class="ni admin-only" onclick="setView('users',this)">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Users
+      <span class="ni-badge" id="nav-users">–</span>
+    </button>
+    <button class="ni admin-only" onclick="setView('audit',this)">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Audit Log
+    </button>
+    <button class="ni" onclick="openPwModal()">
+      <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Change Password
+    </button>
+    <button class="ni" onclick="exportCSV()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
+    </button>
+  </div>
+  <div class="sb-footer">
+    <div class="sb-user">
+      <div class="sb-av" id="sb-av">–</div>
+      <div>
+        <div class="sb-uname" id="sb-uname">–</div>
+        <div class="sb-role"><span class="role-tag" id="sb-role-tag">–</span></div>
+      </div>
+      <button class="sb-logout" onclick="doLogout()" title="Sign out">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div><div class="tb-title" id="pageTitle">Home</div><div class="tb-sub" id="pageDate"></div></div>
+    <div class="tb-right">
+      <span class="refresh-info" id="refreshInfo">Connecting…</span>
+      <div class="live-pill"><span class="live-dot"></span>Live</div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- ══ HOME ══ -->
+    <div class="view active" id="view-home">
+      <div class="pg-head">
+        <div><div class="pg-title" id="greeting">–</div><div class="pg-sub" id="dateLabel">–</div></div>
+      </div>
+      <div class="sg" style="grid-template-columns:repeat(5,1fr)">
+        <div class="sc"><div class="sc-lbl">Total</div><div class="sc-val" id="h-total">–</div><div class="sc-sub c-blue">Customers</div></div>
+        <div class="sc"><div class="sc-lbl">Online</div><div class="sc-val c-green" id="h-online">–</div><div class="sc-sub c-green">Reachable</div></div>
+        <div class="sc"><div class="sc-lbl">Offline</div><div class="sc-val c-red" id="h-offline">–</div><div class="sc-sub c-red">No response</div></div>
+        <div class="sc"><div class="sc-lbl">Reserved</div><div class="sc-val c-amber" id="h-reserved">–</div><div class="sc-sub c-amber">Internal</div></div>
+        <div class="sc"><div class="sc-lbl">Avg Latency</div><div class="sc-val c-cyan" id="h-latency">–</div><div class="sc-sub c-muted">ms (live)</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">Recent offline / unassigned <span style="font-size:11px;color:var(--faint);font-weight:400">Auto-refresh every 5s</span></div>
+        <div id="actFeed"></div>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="view" id="view-dashboard">
+      <div class="pg-head"><div><div class="pg-title">Network Dashboard</div><div class="pg-sub">Live subnet analytics</div></div></div>
+      <div class="sg" style="grid-template-columns:repeat(4,1fr)">
+        <div class="sc"><div class="sc-lbl">241.x Subnet</div><div class="sc-val c-blue" id="d-241">–</div><div class="sc-sub">103.180.241.129/25</div></div>
+        <div class="sc"><div class="sc-lbl">240.x Subnet</div><div class="sc-val c-purple" id="d-240">–</div><div class="sc-sub">103.180.240.0/24</div></div>
+        <div class="sc"><div class="sc-lbl">Online Rate</div><div class="sc-val c-green" id="d-rate">–</div><div class="sc-sub c-green">Live measurement</div></div>
+        <div class="sc"><div class="sc-lbl">Passive+Reserved</div><div class="sc-val c-amber" id="d-misc">–</div><div class="sc-sub">Excluded</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card" style="padding:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px">Live status breakdown</div>
+          <div class="bar-r"><div class="bar-m"><span>Online</span><span id="db-on-pct">–</span></div><div class="bar-t"><div class="bar-f" id="db-on-bar" style="width:0%;background:var(--green)"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Offline</span><span id="db-off-pct">–</span></div><div class="bar-t"><div class="bar-f" id="db-off-bar" style="width:0%;background:var(--red)"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Reserved</span><span id="db-res-pct">–</span></div><div class="bar-t"><div class="bar-f" id="db-res-bar" style="width:0%;background:var(--amber)"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Passive</span><span id="db-pas-pct">–</span></div><div class="bar-t"><div class="bar-f" id="db-pas-bar" style="width:0%;background:var(--purple)"></div></div></div>
+          <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="c-muted">Total registered</span><span id="db-total" style="font-weight:500">–</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="c-muted">Online (real ping)</span><span class="c-green" id="db-on-n" style="font-weight:500">–</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--border)"><span class="c-muted">Offline</span><span class="c-red" id="db-off-n" style="font-weight:500">–</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0"><span class="c-muted">Avg latency</span><span class="c-cyan" id="db-lat" style="font-weight:500">–</span></div>
+          </div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px">Estimated sectors</div>
+          <div class="bar-r"><div class="bar-m"><span>Hospitality / Hotels</span><span>38%</span></div><div class="bar-t"><div class="bar-f" style="width:38%;background:#1D9E75"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Healthcare</span><span>18%</span></div><div class="bar-t"><div class="bar-f" style="width:18%;background:#D85A30"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Education</span><span>14%</span></div><div class="bar-t"><div class="bar-f" style="width:14%;background:var(--purple)"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Media / TV</span><span>12%</span></div><div class="bar-t"><div class="bar-f" style="width:12%;background:var(--blue)"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Finance</span><span>10%</span></div><div class="bar-t"><div class="bar-f" style="width:10%;background:var(--amber)"></div></div></div>
+          <div class="bar-r"><div class="bar-m"><span>Tech / Other</span><span>8%</span></div><div class="bar-t"><div class="bar-f" style="width:8%;background:var(--faint)"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ IP MONITOR ══ -->
+    <div class="view" id="view-monitor">
+      <div class="pg-head">
+        <div><div class="pg-title">IP Monitor</div><div class="pg-sub">Real ICMP ping — refreshes every 5s</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="loadCustomers(true)"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>Refresh</button>
+          <button class="btn btn-outline btn-sm" onclick="openAddModal()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add</button>
+          <button class="btn btn-blue btn-sm" onclick="exportCSV()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-box"><span class="si"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span><input type="text" id="searchInput" placeholder="Search IP or customer…" oninput="filterTable()"/></div>
+        <button class="fb active" id="f-all"      onclick="setFilter('all',this)">All</button>
+        <button class="fb"        id="f-online"   onclick="setFilter('online',this)">Online</button>
+        <button class="fb"        id="f-offline"  onclick="setFilter('offline',this)">Offline</button>
+        <button class="fb"        id="f-241"      onclick="setFilter('241',this)">241.x</button>
+        <button class="fb"        id="f-240"      onclick="setFilter('240',this)">240.x</button>
+        <button class="fb"        id="f-reserved" onclick="setFilter('reserved',this)">Reserved</button>
+        <button class="fb"        id="f-passive"  onclick="setFilter('passive',this)">Passive</button>
+      </div>
+      <div class="card" style="border-radius:var(--r) var(--r) 0 0">
+        <div class="tw">
+          <table class="tbl">
+            <thead><tr>
+              <th>Public IP</th><th>Customer Name</th><th>Subnet</th>
+              <th>Status</th><th>Latency</th><th>Last Check</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="tableBody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--faint)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="pagination" style="border-radius:0 0 var(--r) var(--r);border:1px solid var(--border);border-top:none">
+        <div class="pg-info" id="pgInfo">–</div>
+        <div class="pg-btns" id="pgBtns"></div>
+      </div>
+      <div class="ping-wrap">
+        <div class="ping-lbl">Live Ping / Lookup</div>
+        <div class="ping-row">
+          <input type="text" class="ping-inp" id="pingInput" placeholder="Enter IP e.g. 103.180.241.132 …" onkeydown="if(event.key==='Enter')doPing()"/>
+          <button class="btn btn-blue" onclick="doPing()"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Ping Now</button>
+        </div>
+        <div class="terminal" id="pingResult"><span class="t-dim">Enter an IP address — backend performs real ICMP ping and returns actual latency.</span></div>
+      </div>
+    </div>
+
+    <!-- ══ USERS (admin only) ══ -->
+    <div class="view" id="view-users">
+      <div class="pg-head">
+        <div><div class="pg-title">User Management</div><div class="pg-sub">Admin only — manage system access</div></div>
+        <button class="btn btn-blue" onclick="openNewUserModal()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New User</button>
+      </div>
+      <div class="card">
+        <div class="tw">
+          <table class="tbl" id="usersTable">
+            <thead><tr><th>#</th><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
+            <tbody id="usersBody"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--faint)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ AUDIT LOG (admin only) ══ -->
+    <div class="view" id="view-audit">
+      <div class="pg-head">
+        <div><div class="pg-title">Audit Log</div><div class="pg-sub">All data changes recorded with user + timestamp</div></div>
+        <button class="btn btn-outline btn-sm" onclick="loadAudit()"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>Refresh</button>
+      </div>
+      <div class="card">
+        <div class="tw">
+          <table class="tbl">
+            <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Detail</th><th>From IP</th></tr></thead>
+            <tbody id="auditBody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--faint)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-body -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══ MODAL: Add / Edit Customer ══ -->
+<div class="modal-bd" id="custModal">
+  <div class="modal">
+    <div class="modal-hdr"><h3 id="custModalTitle">Add Customer</h3><button class="modal-close" onclick="closeCustModal()">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="custEditIp"/>
+      <div class="frow2">
+        <div class="fr"><label class="fl">Public IP *</label><input class="fi" id="custIp" placeholder="103.180.241.x"/></div>
+        <div class="fr"><label class="fl">Customer Name *</label><input class="fi" id="custName" placeholder="Organisation name"/></div>
+      </div>
+      <div class="frow2">
+        <div class="fr"><label class="fl">Location</label><input class="fi" id="custLoc" placeholder="e.g. Kathmandu HO"/></div>
+        <div class="fr"><label class="fl">Contact</label><input class="fi" id="custContact" placeholder="Phone / email"/></div>
+      </div>
+      <div class="fr"><label class="fl">Notes</label><textarea class="fi" id="custNotes" placeholder="Any additional notes…"></textarea></div>
+      <div class="err-msg" id="custErr"></div>
+      <div class="ok-msg"  id="custOk"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCustModal()">Cancel</button>
+      <button class="btn btn-blue" id="custSubmitBtn" onclick="submitCust()">Add Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Bulk Import ══ -->
+<div class="modal-bd" id="bulkModal">
+  <div class="modal">
+    <div class="modal-hdr"><h3>Bulk Import Customers</h3><button class="modal-close" onclick="closeBulkModal()">×</button></div>
+    <div class="modal-body">
+      <div class="fr">
+        <label class="fl">Paste CSV data (ip,name per line)</label>
+        <textarea class="fi" id="bulkText" style="height:180px;font-family:var(--mono);font-size:12px" placeholder="103.180.241.10,Hotel Example Kathmandu&#10;103.180.240.50,ABC Company Pokhara&#10;103.180.241.22,XYZ Corp Chitwan"></textarea>
+        <div class="bulk-hint">Format: <code>ip,customer name</code> — one per line. Optionally: <code>ip,name,location,contact,notes</code></div>
+      </div>
+      <div class="err-msg" id="bulkErr"></div>
+      <div class="ok-msg"  id="bulkOk"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBulkModal()">Cancel</button>
+      <button class="btn btn-green" onclick="submitBulk()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: New/Edit User ══ -->
+<div class="modal-bd" id="userModal">
+  <div class="modal">
+    <div class="modal-hdr"><h3 id="userModalTitle">New User</h3><button class="modal-close" onclick="closeUserModal()">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="userEditId"/>
+      <div class="frow2">
+        <div class="fr"><label class="fl">Username *</label><input class="fi" id="uUsername" placeholder="username"/></div>
+        <div class="fr"><label class="fl">Role *</label>
+          <select class="fi" id="uRole"><option value="operator">Operator</option><option value="admin">Admin</option></select>
+        </div>
+      </div>
+      <div class="frow2">
+        <div class="fr"><label class="fl">Full Name</label><input class="fi" id="uFullName" placeholder="Full name"/></div>
+        <div class="fr"><label class="fl">Email</label><input class="fi" id="uEmail" placeholder="email@example.com"/></div>
+      </div>
+      <div class="fr"><label class="fl" id="uPwLabel">Password *</label><input class="fi" id="uPassword" type="password" placeholder="Min 6 characters"/></div>
+      <div class="fr" id="uActiveRow" style="display:none"><label class="fl">Status</label>
+        <select class="fi" id="uActive"><option value="1">Active</option><option value="0">Disabled</option></select>
+      </div>
+      <div class="err-msg" id="userErr"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeUserModal()">Cancel</button>
+      <button class="btn btn-blue" onclick="submitUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Change Password ══ -->
+<div class="modal-bd" id="pwModal">
+  <div class="modal">
+    <div class="modal-hdr"><h3>Change Password</h3><button class="modal-close" onclick="document.getElementById('pwModal').classList.remove('open')">×</button></div>
+    <div class="modal-body">
+      <div class="fr"><label class="fl">Current Password</label><input class="fi" id="pwOld" type="password" placeholder="Current password"/></div>
+      <div class="fr"><label class="fl">New Password</label><input class="fi" id="pwNew" type="password" placeholder="Min 6 characters"/></div>
+      <div class="fr"><label class="fl">Confirm New Password</label><input class="fi" id="pwConfirm" type="password" placeholder="Repeat new password"/></div>
+      <div class="err-msg" id="pwErr"></div>
+      <div class="ok-msg"  id="pwOk"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="document.getElementById('pwModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-blue" onclick="submitPw()">Change Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Confirm delete ══ -->
+<div class="confirm-bd" id="confirmBd">
+  <div class="confirm-box">
+    <div class="confirm-icon"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
+    <div class="confirm-title" id="confirmTitle">Delete Customer?</div>
+    <div class="confirm-msg"  id="confirmMsg">This action cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="btn btn-outline" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-red" onclick="doConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = `${window.location.protocol}//${window.location.host}/api`;
+let ME = null;       // current user info
+let allCust = [];    // all customers from backend
+let filtered = [];   // after search/filter
+let activeFilter = 'all';
+let curPage = 1;
+const PER = 50;
+let confirmCb = null;
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginErr');
+  err.style.display = 'none';
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  try {
+    const r = await apiFetch('/auth/login', 'POST', {username: u, password: p});
+    if (r.error) { err.textContent = r.error; err.style.display = 'block'; return; }
+    ME = r;
+    startApp();
+  } catch(e) {
+    err.textContent = 'Cannot reach server. Please ask to an Enterprise administrator?';
+    err.style.display = 'block';
+  } finally {
+    btn.textContent = 'Sign in'; btn.disabled = false;
+  }
+}
+
+async function doLogout() {
+  await apiFetch('/auth/logout', 'POST');
+  ME = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginPass').value = '';
+  clearInterval(window._pollTimer);
+}
+
+async function checkSession() {
+  try {
+    const r = await apiFetch('/auth/me');
+    if (r.logged_in) { ME = r; startApp(); }
+    else { document.getElementById('loginScreen').classList.remove('hidden'); }
+  } catch(e) {
+    document.getElementById('loginScreen').classList.remove('hidden');
+  }
+}
+
+function startApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  // Set sidebar user info
+  document.getElementById('sb-av').textContent = (ME.full_name||ME.username).slice(0,2).toUpperCase();
+  document.getElementById('sb-uname').textContent = ME.full_name || ME.username;
+  const rt = document.getElementById('sb-role-tag');
+  rt.textContent = ME.role; rt.className = `role-tag ${ME.role}`;
+  // Show admin-only nav items
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = ME.role === 'admin' ? '' : 'none';
+  });
+  initClockAndGreeting();
+  loadStats(); loadCustomers();
+  if (ME.role === 'admin') loadUsers();
+  window._pollTimer = setInterval(() => { loadStats(); loadCustomers(); }, 5000);
+}
+
+// ─── API helper ──────────────────────────────────────────────────────────────
+async function apiFetch(path, method='GET', body=null) {
+  const opts = { method, credentials: 'include', headers: {} };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(API + path, opts);
+  if (r.status === 401) { doLogout(); throw new Error('Session expired'); }
+  return r.json();
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const d = await apiFetch('/stats');
+    document.getElementById('h-total').textContent   = d.total;
+    document.getElementById('h-online').textContent  = d.online;
+    document.getElementById('h-offline').textContent = d.offline + (d.unassigned||0);
+    document.getElementById('h-reserved').textContent= d.reserved||0;
+    document.getElementById('h-latency').textContent = d.avg_latency_ms ?? '–';
+    document.getElementById('nav-total').textContent = d.total;
+    document.getElementById('d-241').textContent = (allCust.filter(x=>x.ip.includes('.241.')).length)||'–';
+    document.getElementById('d-240').textContent = (allCust.filter(x=>x.ip.includes('.240.')).length)||'–';
+    document.getElementById('d-rate').textContent = Math.round((d.online/(d.total||1))*100)+'%';
+    document.getElementById('d-misc').textContent = (d.reserved||0)+(d.passive||0);
+    document.getElementById('db-total').textContent = d.total;
+    document.getElementById('db-on-n').textContent  = d.online;
+    document.getElementById('db-off-n').textContent = d.offline;
+    document.getElementById('db-lat').textContent   = d.avg_latency_ms ? d.avg_latency_ms+' ms' : '–';
+    const t = d.total || 1;
+    [['online','on'],['offline','off'],['reserved','res'],['passive','pas']].forEach(([k,id])=>{
+      const p = Math.round(((d[k]||0)/t)*100);
+      document.getElementById(`db-${id}-pct`).textContent = p+'%';
+      document.getElementById(`db-${id}-bar`).style.width = p+'%';
+    });
+    setRI('ok');
+  } catch(e) { setRI('err'); }
+}
+
+function setRI(s) {
+  const el = document.getElementById('refreshInfo');
+  if (s==='ok') el.textContent = '✓ '+new Date().toLocaleTimeString();
+  else if(s==='loading') el.textContent = '⟳ Refreshing…';
+  else el.textContent = '⚠ Backend offline';
+}
+
+// ─── Customers ───────────────────────────────────────────────────────────────
+async function loadCustomers(manual=false) {
+  if (manual) setRI('loading');
+  try {
+    const d = await apiFetch('/customers');
+    allCust = d;
+    filterTable();
+    updateFeed();
+    setRI('ok');
+  } catch(e) { setRI('err'); }
+}
+
+function updateFeed() {
+  const offs = allCust.filter(x=>x.status==='offline'||x.status==='unassigned').slice(0,6);
+  const el = document.getElementById('actFeed');
+  if (!offs.length) { el.innerHTML=`<div class="act-item"><span style="color:var(--green)">✓ All monitored IPs are currently reachable</span></div>`; return; }
+  el.innerHTML = offs.map(x=>`<div class="act-item"><div class="act-dot" style="background:var(--red)"></div><div class="act-txt">${x.ip} — ${x.name}</div><div class="act-time">${ago(x.checked_at)}</div></div>`).join('');
+}
+
+function filterTable() {
+  const q = (document.getElementById('searchInput').value||'').toLowerCase().trim();
+  let d = [...allCust];
+  if (activeFilter==='241')     d=d.filter(x=>x.ip.includes('.241.'));
+  if (activeFilter==='240')     d=d.filter(x=>x.ip.includes('.240.'));
+  if (activeFilter==='online')  d=d.filter(x=>x.status==='online');
+  if (activeFilter==='offline') d=d.filter(x=>x.status==='offline'||x.status==='unassigned');
+  if (activeFilter==='reserved')d=d.filter(x=>x.status==='reserved');
+  if (activeFilter==='passive') d=d.filter(x=>x.status==='passive');
+  if (q) d=d.filter(x=>x.ip.includes(q)||(x.name||'').toLowerCase().includes(q));
+  filtered=d; curPage=1; renderTable();
+}
+
+function setFilter(f,btn) {
+  activeFilter=f;
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); filterTable();
+}
+
+function latChip(ms) {
+  if(ms==null) return`<span class="lat na">–</span>`;
+  const c=ms<20?'fast':ms<80?'mid':'slow';
+  return`<span class="lat ${c}">${ms}ms</span>`;
+}
+function ago(iso) {
+  if(!iso) return'–';
+  const s=Math.round((Date.now()-new Date(iso))/1000);
+  if(s<10)return'just now';if(s<60)return`${s}s ago`;if(s<3600)return`${Math.floor(s/60)}m ago`;return`${Math.floor(s/3600)}h ago`;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const start = (curPage-1)*PER;
+  const slice = filtered.slice(start, start+PER);
+  if (!slice.length) { tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--faint)">No results found.</td></tr>`; pgRender(0); return; }
+  const canEdit = true; // all logged-in users can edit; admin only can delete — adjust as needed
+  tbody.innerHTML = slice.map(x=>{
+    const st = x.status||'unknown';
+    const sn = x.ip.includes('.241.')?'sn-241':'sn-240';
+    const snL= x.ip.includes('.241.')?'241.x':'240.x';
+    const dim= ['offline','unassigned','reserved'].includes(st)?' dim':'';
+    const editBtn=`<button class="tbl-btn edit" onclick="openEditModal('${x.ip}')">Edit</button>`;
+    const delBtn = ME&&ME.role==='admin' ? `<button class="tbl-btn danger" onclick="confirmDelete('${x.ip}','${x.name.replace(/'/g,"\\'")}')">Delete</button>` : '';
+    const pingBtn=`<button class="tbl-btn" onclick="livePing('${x.ip}')">Ping</button>`;
+    return`<tr>
+      <td><span class="ip-chip">${x.ip}</span></td>
+      <td><span class="cn${dim}" title="${x.name}">${x.name}</span></td>
+      <td><span class="sn ${sn}">${snL}</span></td>
+      <td><span class="pill ${st}"><span class="pd"></span>${st.charAt(0).toUpperCase()+st.slice(1)}</span></td>
+      <td>${latChip(x.latency_ms)}</td>
+      <td style="font-size:11px;color:var(--faint)">${ago(x.checked_at)}</td>
+      <td><div class="action-btns">${pingBtn}${editBtn}${delBtn}</div></td>
+    </tr>`;
+  }).join('');
+  pgRender(filtered.length);
+}
+
+function pgRender(total) {
+  const pages=Math.ceil(total/PER);
+  const start=(curPage-1)*PER;
+  document.getElementById('pgInfo').textContent=total?`Showing ${start+1}–${Math.min(start+PER,total)} of ${total}`:'No results';
+  const pb=document.getElementById('pgBtns'); pb.innerHTML='';
+  for(let i=1;i<=pages;i++){const b=document.createElement('button');b.className='pg-btn'+(i===curPage?' active':'');b.textContent=i;b.onclick=()=>{curPage=i;renderTable();};pb.appendChild(b);}
+}
+
+// ─── Customer Modals ─────────────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('custModalTitle').textContent='Add Customer';
+  document.getElementById('custSubmitBtn').textContent='Add Customer';
+  document.getElementById('custEditIp').value='';
+  document.getElementById('custIp').value=''; document.getElementById('custIp').disabled=false;
+  document.getElementById('custName').value=''; document.getElementById('custLoc').value='';
+  document.getElementById('custContact').value=''; document.getElementById('custNotes').value='';
+  clearFeedback('custErr','custOk');
+  document.getElementById('custModal').classList.add('open');
+  setTimeout(()=>document.getElementById('custIp').focus(),80);
+}
+
+async function openEditModal(ip) {
+  const r = await apiFetch(`/customers/${encodeURIComponent(ip)}`);
+  document.getElementById('custModalTitle').textContent='Edit Customer';
+  document.getElementById('custSubmitBtn').textContent='Save Changes';
+  document.getElementById('custEditIp').value=ip;
+  document.getElementById('custIp').value=ip; document.getElementById('custIp').disabled=true;
+  document.getElementById('custName').value=r.name||'';
+  document.getElementById('custLoc').value=r.location||'';
+  document.getElementById('custContact').value=r.contact||'';
+  document.getElementById('custNotes').value=r.notes||'';
+  clearFeedback('custErr','custOk');
+  document.getElementById('custModal').classList.add('open');
+  setTimeout(()=>document.getElementById('custName').focus(),80);
+}
+
+function closeCustModal() { document.getElementById('custModal').classList.remove('open'); }
+
+async function submitCust() {
+  const editIp = document.getElementById('custEditIp').value;
+  const ip     = document.getElementById('custIp').value.trim();
+  const name   = document.getElementById('custName').value.trim();
+  const loc    = document.getElementById('custLoc').value.trim();
+  const contact= document.getElementById('custContact').value.trim();
+  const notes  = document.getElementById('custNotes').value.trim();
+  clearFeedback('custErr','custOk');
+  if (!ip||!name) return showField('custErr','IP and Name are required.');
+  const body   = {name,location:loc,contact,notes};
+  const isEdit = !!editIp;
+  try {
+    const r = isEdit
+      ? await apiFetch(`/customers/${encodeURIComponent(editIp)}`, 'PUT', body)
+      : await apiFetch('/customers', 'POST', {ip, ...body});
+    if (r.error) return showField('custErr', r.error);
+    showField('custOk', isEdit ? 'Customer updated!' : 'Customer added!');
+    showToast(isEdit ? `✓ ${ip} updated` : `✓ ${ip} added`, 'ok');
+    await loadCustomers(); await loadStats();
+    setTimeout(closeCustModal, 900);
+  } catch(e) { showField('custErr','Server error. Try again.'); }
+}
+
+// ─── Bulk Import ──────────────────────────────────────────────────────────────
+function openBulkModal() {
+  document.getElementById('bulkText').value='';
+  clearFeedback('bulkErr','bulkOk');
+  document.getElementById('bulkModal').classList.add('open');
+}
+function closeBulkModal() { document.getElementById('bulkModal').classList.remove('open'); }
+
+async function submitBulk() {
+  const text = document.getElementById('bulkText').value.trim();
+  clearFeedback('bulkErr','bulkOk');
+  if (!text) return showField('bulkErr','Paste some data first.');
+  const entries = text.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split(',');
+    return {ip:(p[0]||'').trim(), name:(p[1]||'').trim(), location:(p[2]||'').trim(), contact:(p[3]||'').trim(), notes:(p[4]||'').trim()};
+  }).filter(e=>e.ip&&e.name);
+  if (!entries.length) return showField('bulkErr','No valid rows found. Format: ip,name');
+  try {
+    const r = await apiFetch('/customers/bulk','POST',{entries});
+    if (r.error) return showField('bulkErr',r.error);
+    const msg = `✓ Added: ${r.added} | Skipped: ${r.skipped}${r.errors.length?' | Errors: '+r.errors.slice(0,3).join(', '):''}`;
+    showField('bulkOk', msg);
+    showToast(`Bulk import: ${r.added} added`, 'ok');
+    await loadCustomers(); await loadStats();
+    setTimeout(closeBulkModal, 1500);
+  } catch(e) { showField('bulkErr','Server error.'); }
+}
+
+// ─── Delete confirm ───────────────────────────────────────────────────────────
+function confirmDelete(ip, name) {
+  document.getElementById('confirmTitle').textContent = 'Delete Customer?';
+  document.getElementById('confirmMsg').textContent   = `This will permanently delete "${name}" (${ip}) and all its ping history.`;
+  confirmCb = async () => {
+    const r = await apiFetch(`/customers/${encodeURIComponent(ip)}`,'DELETE');
+    showToast(`✓ ${ip} deleted`, 'ok');
+    await loadCustomers(); await loadStats();
+  };
+  document.getElementById('confirmBd').classList.add('open');
+}
+async function doConfirm() { closeConfirm(); if (confirmCb) { await confirmCb(); confirmCb=null; } }
+function closeConfirm() { document.getElementById('confirmBd').classList.remove('open'); }
+
+// ─── Ping ─────────────────────────────────────────────────────────────────────
+async function livePing(ip) {
+  setView('monitor', document.querySelectorAll('.ni')[2]);
+  document.getElementById('pingInput').value = ip;
+  document.getElementById('pingResult').innerHTML=`<span class="t-dim">⏳ Pinging ${ip} via ICMP…</span>`;
+  setTimeout(()=>document.getElementById('pingInput').scrollIntoView({behavior:'smooth',block:'center'}), 80);
+  try {
+    const d = await apiFetch(`/ping/${encodeURIComponent(ip)}`);
+    renderPing(d);
+    const i=allCust.findIndex(x=>x.ip===ip);
+    if(i!==-1){allCust[i].status=d.status;allCust[i].latency_ms=d.latency_ms;allCust[i].checked_at=d.checked_at;filterTable();}
+  } catch(e) { document.getElementById('pingResult').innerHTML=`<span class="t-err">✗ Backend unreachable.</span>`; }
+}
+async function doPing() { const ip=document.getElementById('pingInput').value.trim(); if(ip) await livePing(ip); }
+function renderPing(d) {
+  const icon=d.status==='online'?`<span class="t-ok">✓  REACHABLE</span>`:d.status==='offline'?`<span class="t-err">✗  UNREACHABLE</span>`:`<span class="t-amber">⚠  ${d.status.toUpperCase()}</span>`;
+  const lat=d.latency_ms!=null?`<span class="t-ok">${d.latency_ms} ms</span>`:`<span class="t-err">N/A</span>`;
+  document.getElementById('pingResult').innerHTML=
+`<span class="t-info">PING ${d.ip} — Real ICMP via backend</span>
+<span class="t-dim">──────────────────────────────────────</span>
+Customer : <span style="color:#E2E8F0">${d.name}</span>
+Status   : ${icon}
+Latency  : ${lat}
+Checked  : <span class="t-dim">${new Date(d.checked_at).toLocaleString()}</span>
+<span class="t-dim">──────────────────────────────────────</span>
+<span class="t-dim">Saved to DB. History: /api/history/${d.ip}</span>`;
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const d = await apiFetch('/users');
+    document.getElementById('nav-users').textContent = d.length;
+    const tb = document.getElementById('usersBody');
+    tb.innerHTML = d.map(u=>`<tr>
+      <td style="color:var(--faint)">${u.id}</td>
+      <td style="font-family:var(--mono);font-size:12px">${u.username}</td>
+      <td>${u.full_name||'–'}</td>
+      <td><span class="user-row-role ${u.role}">${u.role}</span></td>
+      <td><span class="pill ${u.active?'online':'offline'}">${u.active?'Active':'Disabled'}</span></td>
+      <td style="font-size:11px;color:var(--faint)">${u.last_login?new Date(u.last_login).toLocaleString():'Never'}</td>
+      <td><div class="action-btns">
+        <button class="tbl-btn edit" onclick="openEditUserModal(${u.id},'${u.username}','${u.role}','${u.full_name||''}','${u.email||''}',${u.active})">Edit</button>
+        ${u.username!==ME.username?`<button class="tbl-btn danger" onclick="confirmDeleteUser(${u.id},'${u.username}')">Delete</button>`:'<span style="font-size:11px;color:var(--faint)">You</span>'}
+      </div></td>
+    </tr>`).join('');
+  } catch(e) {}
+}
+
+function openNewUserModal() {
+  document.getElementById('userModalTitle').textContent='New User';
+  document.getElementById('userEditId').value='';
+  document.getElementById('uUsername').value=''; document.getElementById('uUsername').disabled=false;
+  document.getElementById('uRole').value='operator';
+  document.getElementById('uFullName').value=''; document.getElementById('uEmail').value=''; document.getElementById('uPassword').value='';
+  document.getElementById('uPwLabel').textContent='Password *';
+  document.getElementById('uActiveRow').style.display='none';
+  clearFeedback('userErr');
+  document.getElementById('userModal').classList.add('open');
+}
+function openEditUserModal(id, username, role, fullName, email, active) {
+  document.getElementById('userModalTitle').textContent=`Edit: ${username}`;
+  document.getElementById('userEditId').value=id;
+  document.getElementById('uUsername').value=username; document.getElementById('uUsername').disabled=true;
+  document.getElementById('uRole').value=role;
+  document.getElementById('uFullName').value=fullName; document.getElementById('uEmail').value=email;
+  document.getElementById('uPassword').value='';
+  document.getElementById('uPwLabel').textContent='New Password (leave blank to keep)';
+  document.getElementById('uActiveRow').style.display='block';
+  document.getElementById('uActive').value=active?'1':'0';
+  clearFeedback('userErr');
+  document.getElementById('userModal').classList.add('open');
+}
+function closeUserModal() { document.getElementById('userModal').classList.remove('open'); }
+
+async function submitUser() {
+  const id       = document.getElementById('userEditId').value;
+  const username = document.getElementById('uUsername').value.trim();
+  const role     = document.getElementById('uRole').value;
+  const fullName = document.getElementById('uFullName').value.trim();
+  const email    = document.getElementById('uEmail').value.trim();
+  const password = document.getElementById('uPassword').value;
+  const active   = document.getElementById('uActive').value;
+  clearFeedback('userErr');
+  if (!id && (!username||!password)) return showField('userErr','Username and password required.');
+  try {
+    let r;
+    if (id) {
+      const body = {role,full_name:fullName,email,active:parseInt(active)};
+      if (password) body.password=password;
+      r = await apiFetch(`/users/${id}`,'PUT',body);
+    } else {
+      r = await apiFetch('/users','POST',{username,password,role,full_name:fullName,email});
+    }
+    if (r.error) return showField('userErr',r.error);
+    showToast(id?`✓ User updated`:`✓ User ${username} created`,'ok');
+    closeUserModal(); loadUsers();
+  } catch(e) { showField('userErr','Server error.'); }
+}
+
+function confirmDeleteUser(id, username) {
+  document.getElementById('confirmTitle').textContent='Delete User?';
+  document.getElementById('confirmMsg').textContent=`Remove user "${username}"? They will lose all access immediately.`;
+  confirmCb = async () => { await apiFetch(`/users/${id}`,'DELETE'); showToast(`✓ User ${username} deleted`,'ok'); loadUsers(); };
+  document.getElementById('confirmBd').classList.add('open');
+}
+
+// ─── Password change ──────────────────────────────────────────────────────────
+function openPwModal() {
+  document.getElementById('pwOld').value=''; document.getElementById('pwNew').value=''; document.getElementById('pwConfirm').value='';
+  clearFeedback('pwErr','pwOk');
+  document.getElementById('pwModal').classList.add('open');
+}
+async function submitPw() {
+  const old_pw=document.getElementById('pwOld').value;
+  const new_pw=document.getElementById('pwNew').value;
+  const conf  =document.getElementById('pwConfirm').value;
+  clearFeedback('pwErr','pwOk');
+  if(!old_pw||!new_pw) return showField('pwErr','All fields required.');
+  if(new_pw!==conf)    return showField('pwErr','Passwords do not match.');
+  if(new_pw.length<6)  return showField('pwErr','Min 6 characters.');
+  try {
+    const r=await apiFetch('/auth/change-password','POST',{old_password:old_pw,new_password:new_pw});
+    if(r.error) return showField('pwErr',r.error);
+    showField('pwOk','Password changed successfully!');
+    showToast('✓ Password updated','ok');
+    setTimeout(()=>document.getElementById('pwModal').classList.remove('open'),1000);
+  } catch(e){showField('pwErr','Server error.');}
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+async function loadAudit() {
+  try {
+    const d = await apiFetch('/audit?limit=200');
+    const tb = document.getElementById('auditBody');
+    const colors = {LOGIN_OK:'var(--green)',LOGIN_FAIL:'var(--red)',LOGOUT:'var(--muted)',CUSTOMER_ADD:'var(--blue)',CUSTOMER_UPDATE:'var(--amber)',CUSTOMER_DELETE:'var(--red)',BULK_IMPORT:'var(--cyan)',USER_CREATE:'var(--purple)',USER_UPDATE:'var(--amber)',USER_DELETE:'var(--red)',PASSWORD_CHANGE:'var(--amber)'};
+    tb.innerHTML = d.map(a=>`<tr>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${new Date(a.ts).toLocaleString()}</td>
+      <td style="font-weight:500">${a.username}</td>
+      <td><span class="audit-action" style="color:${colors[a.action]||'var(--muted)'}">${a.action}</span></td>
+      <td style="font-family:var(--mono);font-size:11px">${a.target||'–'}</td>
+      <td style="font-size:12px;color:var(--muted)">${a.detail||'–'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">${a.ip_addr||'–'}</td>
+    </tr>`).join('');
+  } catch(e) {}
+}
+
+// ─── Export CSV ──────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows=[["IP","Name","Subnet","Location","Contact","Status","Latency","Checked"]];
+  allCust.forEach(x=>rows.push([x.ip,x.name,x.subnet||'',x.location||'',x.contact||'',x.status||'',x.latency_ms||'',x.checked_at||'']));
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='ent_ip_registry.csv'; a.click();
+  showToast('✓ CSV exported','ok');
+}
+
+// ─── View switching ──────────────────────────────────────────────────────────
+function setView(v, btn) {
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById('view-'+v)?.classList.add('active');
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const titles={home:'Home',dashboard:'Network Dashboard',monitor:'IP Monitor',users:'User Management',audit:'Audit Log'};
+  document.getElementById('pageTitle').textContent = titles[v]||v;
+  if (v==='monitor') renderTable();
+  if (v==='users' && ME?.role==='admin') loadUsers();
+  if (v==='audit' && ME?.role==='admin') loadAudit();
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function showField(id, msg) { const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; }
+function clearFeedback(...ids) { ids.forEach(id=>{ const el=document.getElementById(id); if(el){el.textContent='';el.style.display='none';} }); }
+function showToast(msg, type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+function initClockAndGreeting() {
+  const now=new Date(); const h=now.getHours();
+  document.getElementById('greeting').textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+`, ${ME.full_name||ME.username}`;
+  const ds=now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('dateLabel').textContent=ds;
+  document.getElementById('pageDate').textContent=ds;
+  const tick=()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  tick(); setInterval(tick,1000);
+}
+
+document.addEventListener('DOMContentLoaded', checkSession);
+</script>
+</body>
+</html>
