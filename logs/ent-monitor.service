@@ -19,25 +19,17 @@
 [Unit]
 Description=ENT Monitor — Enterprise IP Monitoring
 Documentation=https://github.com/biyudh/Enterprise-IP-Monitoring-System-.git
-After=network-online.target 
-#changed After=network.target
+After=network.target
 Wants=network-online.target
 
 [Service]
-Type=simple  #changed notify to simple
+Type=notify
 
 # ── Change these to match your actual paths ──────────────────────
 User=yudha
 Group=yudha
 WorkingDirectory=/home/yudha/ent-monitor/test5-v4.0
-ExecStart=/home/yudha/ent-monitor/test5-v4.0/venv/bin/gunicorn \
-    -c gunicorn.conf.py \
-    --bind 0.0.0.0:5000 \
-    app:app
-    
-## Add explicit bind + timeout fallback (even if in config):
-
-
+ExecStart=/home/yudha/ent-monitor/test5-v4.0/venv/bin/gunicorn -c gunicorn.conf.py app:app
 
 # ── Environment ──────────────────────────────────────────────────
 Environment="PATH=/home/yudha/ent-monitor/test5-v4.0/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -45,7 +37,7 @@ Environment="PYTHONUNBUFFERED=1"
 
 # ── Restart policy ───────────────────────────────────────────────
 Restart=always
-RestartSec=3  ## changed to 5 from 3 for Faster recovery for your monitoring systeme
+RestartSec=5
 StartLimitIntervalSec=60
 StartLimitBurst=3
 

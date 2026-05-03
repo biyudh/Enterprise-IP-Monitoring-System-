@@ -49,6 +49,17 @@ PING_TIMEOUT   = 1     # 1 second timeout per probe
 FPING_COUNT    = 5     # 5 probes per IP — results are averaged
 FPING_INTERVAL = 50    # 50ms between probes to same host
 ```
+```Actual
+# ── Config ────────────────────────────────────────────────────────────────────
+DB_PATH         = "ent_monitor.db"
+PING_INTERVAL   = 5       # seconds between full sweeps (8s gives clean non-overlapping cycles)
+PING_TIMEOUT    = 2000    # per-probe timeout in ms (2000ms = 2s)
+FPING_COUNT     = 5       # probes per IP — 5 is most thorough
+FPING_INTERVAL  = 100      # ms between probes to SAME host
+HISTORY_LIMIT   = 200     # ping history rows kept per IP
+SESSION_HOURS   = 8
+
+
 
 The effective command run per sweep:
 ```bash

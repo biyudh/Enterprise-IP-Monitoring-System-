@@ -1,5 +1,5 @@
 """
-ENT Monitor v3 — Backend API with Auth + Full CRUD
+ENT Monitor v5 — Backend API with Auth + Full CRUD
 ====================================================
 Features:
   - User authentication (session-based, bcrypt hashed passwords)
@@ -32,10 +32,11 @@ import shutil
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DB_PATH         = "ent_monitor.db"
-PING_INTERVAL   = 5       # seconds between full sweeps (8s gives clean non-overlapping cycles)
-PING_TIMEOUT    = 2000    # per-probe timeout in ms (2000ms = 2s)
-FPING_COUNT     = 5       # probes per IP — 5 is most thorough
-FPING_INTERVAL  = 100      # ms between probes to SAME host
+PING_INTERVAL   = 8       # seconds between full sweeps (8s gives clean non-overlapping cycles)
+PING_TIMEOUT    = 1500    # per-probe timeout in ms (1500ms = 1.5s)
+
+FPING_COUNT     = 3       # probes per IP — 3 is stable and fast
+FPING_INTERVAL  = 50      # ms between probes to SAME host
 HISTORY_LIMIT   = 200     # ping history rows kept per IP
 SESSION_HOURS   = 8
 

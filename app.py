@@ -1,5 +1,5 @@
 """
-ENT Monitor v3 — Backend API with Auth + Full CRUD
+ENT Monitor v5 — Backend API with Auth + Full CRUD
 ====================================================
 Features:
   - User authentication (session-based, bcrypt hashed passwords)
@@ -29,16 +29,19 @@ from flask_cors import CORS
 import bcrypt
 
 import shutil
-FPING_BIN = shutil.which("fping")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-DB_PATH        = "ent_monitor.db"
-PING_INTERVAL  = 5      # seconds between full sweeps
-PING_TIMEOUT   = 2      # seconds per ping
-FPING_COUNT    = 3      # number of probes per IP
-FPING_INTERVAL = 50     # ms between probes to same host
-HISTORY_LIMIT  = 100
-SESSION_HOURS  = 8
+DB_PATH         = "ent_monitor.db"
+PING_INTERVAL   = 8       # seconds between full sweeps (8s gives clean non-overlapping cycles)
+PING_TIMEOUT    = 1500    # per-probe timeout in ms (1500ms = 1.5s)
+
+FPING_COUNT     = 3       # probes per IP — 3 is stable and fast
+FPING_INTERVAL  = 50      # ms between probes to SAME host
+HISTORY_LIMIT   = 200     # ping history rows kept per IP
+SESSION_HOURS   = 8
+
+# Detect fping binary at startup
+FPING_BIN = shutil.which("fping")
 
 _BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 
@@ -343,12 +346,6 @@ def change_own_password():
     log_action(session["user"], "PASSWORD_CHANGE")
     return jsonify({"ok": True})
 
-# ── Backend status ────────────────────────────────────────────────────────────
-@app.route("/api/backend-status")
-def backend_status():
-    """Simple heartbeat — frontend polls this to show 'Backend online/offline'."""
-    return jsonify({"ok": True, "fping": bool(FPING_BIN), "sweep_active": _sweep_active})
-
 # ── Stats ─────────────────────────────────────────────────────────────────────
 @app.route("/api/stats")
 @require_login
@@ -540,46 +537,41 @@ def classify_status(name):
         return "passive"
     return "active"
 
-# ── fping single-IP ───────────────────────────────────────────────────────────
+# ── fping single-IP (on-demand from UI) ──────────────────────────────────────
 def fping_single(ip):
     """
-    Use fping for a single IP (on-demand ping from the API).
-    Sends FPING_COUNT probes, returns averaged latency.
-    fping flags:
-      -c  count     : number of probes
-      -t  timeout   : per-probe timeout in ms
-      -p  interval  : ms between probes
-      -q            : quiet (suppress per-probe output, show summary only)
-      -e            : show elapsed time on return
+    On-demand ping for one IP from the /api/ping/<ip> endpoint.
+    Uses same settings as bulk: 3 probes, 50ms interval, 1500ms timeout.
     """
     try:
         cmd = [
             FPING_BIN,
             "-c", str(FPING_COUNT),
-            "-t", str(PING_TIMEOUT * 1000),
+            "-t", str(PING_TIMEOUT),
             "-p", str(FPING_INTERVAL),
             "-q",
+            "-A",
             ip
         ]
+        timeout_sec = (PING_TIMEOUT / 1000.0) * FPING_COUNT + 5
         result = subprocess.run(
-            cmd, capture_output=True, text=True,
-            timeout=PING_TIMEOUT * FPING_COUNT + 2
+            cmd, capture_output=True, text=True, timeout=timeout_sec
         )
-        # fping summary line (stderr): IP : xmt/rcv/%loss = a/b/c%, min/avg/max = x/y/z
-        output = result.stderr + result.stdout
+        output = (result.stderr or "") + (result.stdout or "")
 
-        # Parse loss percentage
-        loss_m = re.search(r"(\d+)%\s*loss", output)
-        loss   = int(loss_m.group(1)) if loss_m else 100
+        loss = 100
+        loss_m = re.search(r"(\d+)%", output)
+        if loss_m:
+            loss = int(loss_m.group(1))
 
-        # Parse avg latency from min/avg/max
-        lat_m  = re.search(r"min/avg/max\s*=\s*[\d.]+/([\d.]+)/[\d.]+", output)
-        avg_ms = round(float(lat_m.group(1)), 2) if lat_m else None
+        avg_ms = None
+        lat_m = re.search(r"min/avg/max\s*=\s*[\d.]+/([\d.]+)/[\d.]+", output, re.IGNORECASE)
+        if lat_m:
+            avg_ms = round(float(lat_m.group(1)), 2)
 
-        # Decision: >=50% loss = offline, else online with averaged latency
         if loss >= 50:
-            return {"status": "offline", "latency_ms": avg_ms, "loss_pct": loss}
-        return {"status": "online", "latency_ms": avg_ms, "loss_pct": loss}
+            return {"status": "offline", "latency_ms": None,   "loss_pct": loss}
+        return     {"status": "online",  "latency_ms": avg_ms, "loss_pct": loss}
 
     except Exception as e:
         print(f"[fping_single] {ip}: {e}")
@@ -588,15 +580,15 @@ def fping_single(ip):
 # ── fping bulk-sweep ──────────────────────────────────────────────────────────
 def fping_bulk(ip_list):
     """
-    Ping ALL IPs in one fping call — massively faster than individual pings.
-    Returns dict: { ip -> {status, latency_ms, loss_pct} }
+    Ping ALL IPs in ONE fping subprocess call.
+    3 probes per IP, 50ms between probes, 1500ms timeout.
 
-    fping flags:
-      -c  count     : probes per host
-      -t  timeout   : ms per probe
-      -p  interval  : ms between probes to same host
-      -q            : summary output only
-      -A            : print IP instead of hostname
+    fping output (stderr) format per host:
+      103.180.241.132 : xmt/rcv/%loss = 3/3/0%,  min/avg/max = 1.20/1.85/2.40
+      103.180.241.133 : xmt/rcv/%loss = 3/1/66%, min/avg/max = 8.10/9.20/10.40
+      103.180.241.134 : xmt/rcv/%loss = 3/0/100%
+
+    Decision rule: packet_loss >= 50% → offline, else → online.
     """
     if not ip_list:
         return {}
@@ -604,66 +596,89 @@ def fping_bulk(ip_list):
     try:
         cmd = [
             FPING_BIN,
-            "-c", str(FPING_COUNT),
-            "-t", str(PING_TIMEOUT * 1000),
-            "-p", str(FPING_INTERVAL),
-            "-q",
-            "-A",
+            "-c", str(FPING_COUNT),       # 3 probes
+            "-t", str(PING_TIMEOUT),       # 1500ms timeout per probe
+            "-p", str(FPING_INTERVAL),     # 50ms between probes to same host
+            "-q",                          # quiet: summary only, no per-probe lines
+            "-A",                          # always print IP address, not hostname
         ] + ip_list
 
+        timeout_sec = (PING_TIMEOUT / 1000.0) * FPING_COUNT + 15
+
         result = subprocess.run(
-            cmd, capture_output=True, text=True,
-            timeout=PING_TIMEOUT * FPING_COUNT + 10
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout_sec
         )
-        output = result.stderr + result.stdout
+
+        # fping writes summary to STDERR, combine both just in case
+        output = (result.stderr or "") + (result.stdout or "")
         results = {}
 
         for line in output.splitlines():
             line = line.strip()
             if not line:
                 continue
-            # Format: 103.180.241.132 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 1.2/1.8/2.4
-            ip_m = re.match(r"^(\d+\.\d+\.\d+\.\d+)\s*:", line)
+
+            # Must start with an IP address
+            ip_m = re.match(r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*:", line)
             if not ip_m:
                 continue
             ip = ip_m.group(1)
 
-            loss_m = re.search(r"(\d+)%\s*loss", line)
-            loss   = int(loss_m.group(1)) if loss_m else 100
+            # Parse packet loss  — "0%", "33%", "100%" etc
+            loss = 100  # default: assume lost
+            loss_m = re.search(r"(\d+)%\s*(?:loss|packet loss|\))", line)
+            if not loss_m:
+                # Alternative: count xmt/rcv directly  "= 3/2/33%"
+                xmt_m = re.search(r"=\s*(\d+)/(\d+)/(\d+)%", line)
+                if xmt_m:
+                    loss = int(xmt_m.group(3))
+            else:
+                loss = int(loss_m.group(1))
 
-            lat_m  = re.search(r"min/avg/max\s*=\s*[\d.]+/([\d.]+)/[\d.]+", line)
-            avg_ms = round(float(lat_m.group(1)), 2) if lat_m else None
+            # Parse averaged latency from min/avg/max
+            avg_ms = None
+            lat_m = re.search(
+                r"min/avg/max\s*=\s*[\d.]+/([\d.]+)/[\d.]+",
+                line, re.IGNORECASE
+            )
+            if lat_m:
+                avg_ms = round(float(lat_m.group(1)), 2)
 
             if loss >= 50:
-                results[ip] = {"status": "offline", "latency_ms": avg_ms, "loss_pct": loss}
+                results[ip] = {"status": "offline", "latency_ms": None,   "loss_pct": loss}
             else:
                 results[ip] = {"status": "online",  "latency_ms": avg_ms, "loss_pct": loss}
 
-        # IPs not appearing in output = unreachable (100% loss)
+        # Any IP fping didn't print a line for = definitely unreachable
         for ip in ip_list:
             if ip not in results:
                 results[ip] = {"status": "offline", "latency_ms": None, "loss_pct": 100}
 
         return results
 
+    except subprocess.TimeoutExpired:
+        print(f"[fping_bulk] TIMEOUT after {timeout_sec}s — returning all offline")
+        return {ip: {"status": "offline", "latency_ms": None, "loss_pct": 100} for ip in ip_list}
     except Exception as e:
-        print(f"[fping_bulk] Error: {e}")
-        # Return offline for all on error
+        print(f"[fping_bulk] ERROR: {e}")
         return {ip: {"status": "offline", "latency_ms": None, "loss_pct": 100} for ip in ip_list}
 
 # ── system ping fallback (single IP) ──────────────────────────────────────────
 def systing_ping(ip):
-    """Fallback when fping is not installed."""
+    """Fallback when fping is not installed. PING_TIMEOUT is in ms."""
+    timeout_s = PING_TIMEOUT / 1000.0   # convert ms -> seconds
     system = platform.system().lower()
-    cmd = (["ping", "-n", "3", "-w", str(PING_TIMEOUT * 1000), ip]
+    cmd = (["ping", "-n", "3", "-w", str(PING_TIMEOUT), ip]   # Windows: -w in ms
            if system == "windows"
-           else ["ping", "-c", "3", "-W", str(PING_TIMEOUT), ip])
+           else ["ping", "-c", "3", "-W", str(int(timeout_s) or 2), ip])  # Linux: -W in seconds
     try:
         t0     = time.time()
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=PING_TIMEOUT * 3 + 2)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s * 3 + 5)
         elapsed = (time.time() - t0) * 1000
         if result.returncode == 0:
-            # Try avg from ping summary: rtt min/avg/max/mdev = x/y/z/w ms
             m = re.search(r"(?:avg|rtt)[^=]*=\s*[\d.]+/([\d.]+)", result.stdout + result.stderr)
             latency = float(m.group(1)) if m else round(elapsed / 3, 2)
             return {"status": "online", "latency_ms": round(latency, 2), "loss_pct": 0}
@@ -690,10 +705,8 @@ def determine_status(name, ping_result):
 
 def save_ping(ip, status, latency_ms, loss_pct=None):
     db = get_db()
-    # Store as UTC ISO-8601 with Z suffix so JS Date() parses timezone correctly
-    now_utc = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    db.execute("INSERT INTO ping_results (ip,status,latency_ms,checked_at) VALUES (?,?,?,?)",
-               (ip, status, latency_ms, now_utc))
+    db.execute("INSERT INTO ping_results (ip,status,latency_ms) VALUES (?,?,?)",
+               (ip, status, latency_ms))
     db.execute("""
         DELETE FROM ping_results WHERE ip=? AND id NOT IN (
             SELECT id FROM ping_results WHERE ip=? ORDER BY id DESC LIMIT ?
@@ -713,7 +726,7 @@ def api_ping(ip):
     raw    = ping_ip(ip)
     merged = determine_status(row["name"], raw)
     save_ping(ip, merged["status"], merged.get("latency_ms"))
-    return jsonify({**merged, "ip": ip, "name": row["name"], "checked_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")})
+    return jsonify({**merged, "ip": ip, "name": row["name"], "checked_at": datetime.now().isoformat()})
 
 @app.route("/api/history/<ip>")
 @require_login
@@ -746,7 +759,6 @@ def run_sweep():
     - If fping is available: single bulk fping call for ALL IPs at once — very fast.
     - Fallback: threaded individual pings (40 concurrent).
     """
-    global _sweep_active
     engine = "fping" if FPING_BIN else "system ping"
     print(f"[sweep] Engine: {engine}")
 
@@ -793,7 +805,7 @@ def run_sweep():
                     for r in rows
                 ]
                 for t in threads: t.start()
-                for t in threads: t.join(timeout=PING_TIMEOUT * FPING_COUNT + 5)
+                for t in threads: t.join(timeout=(PING_TIMEOUT / 1000.0) * FPING_COUNT + 10)
 
             elapsed = round(time.time() - t_start, 2)
             print(f"[sweep] {len(rows)} IPs in {elapsed}s via {engine}")
@@ -1143,7 +1155,7 @@ if __name__ == "__main__":
 
     fping_status = f"✓ {FPING_BIN}" if FPING_BIN else "✗ NOT FOUND — using system ping (install: sudo apt install fping)"
     print(f"[fping]  {fping_status}")
-    print(f"[engine] Sweep every {PING_INTERVAL}s | {FPING_COUNT} probes per IP | timeout {PING_TIMEOUT}s")
+    print(f"[engine] Sweep every {PING_INTERVAL}s | {FPING_COUNT} probes/IP | {FPING_INTERVAL}ms interval | timeout {PING_TIMEOUT}ms")
     print(f"[server] Open → http://0.0.0.0:5000")
     print(f"[auth]   admin / Admin@123  |  operator / Oper@123")
     print(f"[prod]   gunicorn -c gunicorn.conf.py app:app")

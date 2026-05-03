@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────
-#  gunicorn.conf.py  —  ENT Monitor Production Config
+#  gunicorn.conf.py  —  ENT Monitor Production Config. 
 # ─────────────────────────────────────────────────────────────────
-#  Run with:   gunicorn -c gunicorn.conf.py app:app
+#  Run with:   gunicorn -c gunicorn.conf.py app:app 
 # ─────────────────────────────────────────────────────────────────
 import multiprocessing, os
 
