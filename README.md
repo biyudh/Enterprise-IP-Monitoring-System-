@@ -213,6 +213,7 @@ fping -c 1 8.8.8.8
 | Username | Password | Role |
 |----------|----------|------|
 | admin | Admin@123 | Full access — users, delete, audit log |
+| biyudhg | ********** | Full access — users, delete, audit log |
 | operator | Oper@123 | View + ping + edit customers |
 
 **Change these immediately after first login** via the "Change Password" menu.
