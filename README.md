@@ -1,5 +1,8 @@
 # ENT Monitor v4 — Setup & Production Guide
 
+<img width="1307" height="711" alt="image" src="https://github.com/user-attachments/assets/b844f9fc-5611-40d0-a2f6-515edfd86702" />
+
+
 ## Files in this package
 
 | File | Purpose |
