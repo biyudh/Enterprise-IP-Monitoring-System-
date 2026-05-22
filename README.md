@@ -1,4 +1,43 @@
-# ENT Monitor v4 — Setup & Production Guide
+# ENT Monitor v3.4 — Setup & Production Guide
+
+<img width="685" height="358" alt="Screenshot from 2026-05-22 20-44-54" src="https://github.com/user-attachments/assets/c9a2c0c3-5667-44b9-b013-167d8e314ba0" />
+<img width="685" height="358" alt="Screenshot from 2026-05-22 20-45-11" src="https://github.com/user-attachments/assets/06f77a2a-8d81-47a6-b7e8-701de024d581" />
+Here is the beginner-friendly visual explanation of app_35.py of ent ip monitoring dashboard created by us.
+Now I have everything I need. Let me build a comprehensive, beginner-friendly visual explanation.
+
+
+Here's a full walkthrough of everything in my app, section by section:
+
+What the app does, in one sentence: 
+It continuously pings ~378 customer public IP addresses (businesses on my network), records whether each one is online or offline, and serves that data to a web dashboard with login-protected access.
+
+The libraries i imported
+Flask is the heart of the app — it's a Python web framework that lets i define URL routes (like /api/customers) and return data to the browser. flask_cors allows the browser frontend (dashboard1.html) to talk to Flask even if they're on different origins. bcrypt securely hashes passwords before saving them — even if my database is stolen, passwords aren't readable. sqlite3 is Python's built-in database driver for the lightweight SQLite database file (ent_monitor.db). threading runs the background pinger loop in a separate thread so it doesn't block Flask from answering requests. subprocess lets Python run an external program — in this case, fping.
+
+The ping engine: fping + chunked two-pass sweep
+fping is a Linux command-line tool that can ping hundreds of IPs simultaneously (much faster than Python's built-in ping). my app runs it via subprocess.run(). The clever part is the two-pass chunked approach:
+Pass 1 sends a single quick probe to all ~378 IPs split into chunks of 100. Any IP that responds is immediately marked online. Pass 2 retries only the ones that didn't respond — sending 3 probes this time to catch transient drops. This avoids false "offline" readings caused by brief network hiccups.
+
+Hysteresis: stopping false alarms
+The hysteresis_status() function is my anti-flapping filter. A host is only marked offline after failing 2 consecutive sweeps, not just one. This means a single bad ping result won't flip a customer's status from green to red. Recovery is immediate — one successful ping and they're back online.
+
+The database (SQLite)
+Four tables: users stores staff accounts with hashed passwords and roles. customers holds each customer's IP address and name (the ~378 entries in SEED_DATA at the bottom of the file). ping_results stores the history of every ping check (up to 200 results per IP). audit_log records every action any user takes — logins, edits, deletions.
+
+The role system
+Three levels: admin can do everything including deleting customers and managing users. operator can add/edit customers and run pings. viewer can only look. The @require_login, @require_operator, and @require_admin decorators on each route enforce these rules automatically — they're like a security guard at the door of each API endpoint.
+
+The API routes
+Each @app_35.route(...) defines a URL the browser can call. For example, when the dashboard loads, it calls GET /api/stats to get the count of online/offline customers, and GET /api/customers to get the full list with latest statuses. When an operator clicks "ping now", the browser calls GET /api/ping/<ip>, which immediately runs fping on that single IP and returns the result.
+
+The seed data
+The huge SEED_DATA list at the bottom is my initial customer database — Nepali hospitals, hotels, TV stations, schools, and businesses. The seed_customers() function inserts them all into the database on first run, but only if the table is empty.
+
+How it all starts
+When i run python app_35.py, three things happen in order: init_db() creates the tables, seed_customers() populates the customer list, and start_internal_sweeper() launches the background thread that pings everyone every 30 seconds. Then Flask starts listening on port 5001 and i open the dashboard in my browser.
+
+
+##
 
 <img width="1307" height="711" alt="image" src="https://github.com/user-attachments/assets/b844f9fc-5611-40d0-a2f6-515edfd86702" />
 
