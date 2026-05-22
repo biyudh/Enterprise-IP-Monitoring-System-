@@ -1,4 +1,4 @@
-# ENT Monitor v3.4 — Setup & Production Guide
+# ENT Monitor Overview — Details, Setup & Production Guide
 
 <img width="685" height="358" alt="Screenshot from 2026-05-22 20-44-54" src="https://github.com/user-attachments/assets/c9a2c0c3-5667-44b9-b013-167d8e314ba0" />
 <img width="685" height="358" alt="Screenshot from 2026-05-22 20-45-11" src="https://github.com/user-attachments/assets/06f77a2a-8d81-47a6-b7e8-701de024d581" />
